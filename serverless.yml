@@ -1,0 +1,36 @@
+service: ddf-rds-enabler-service
+
+provider:
+  name: aws
+  runtime: java8
+  stage: dev
+  memorySize: 1024
+  timeout: 60 # The default is 6
+  region: us-west-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - Fn::Join: ["", ["arn:aws:dynamodb:", { Ref: "AWS::Region" },":",{ Ref: "AWS::AccountId" }, ":table/${self:custom.JOBSTATUS_DYNAMODB_TABLE}"]]
+        - Fn::Join: ["", ["arn:aws:dynamodb:", { Ref: "AWS::Region" },":",{ Ref: "AWS::AccountId" }, ":table/${self:custom.JOBSTATUS_DYNAMODB_TABLE}/index/*"]]
+
+custom:
+  prefix: ${self:service}-${opt:stage, self:provider.stage}
+  JOBSTATUS_DYNAMODB_TABLE: crowsnest-dataflow-dev.JobStatus
+
+package:
+  artifact: target/dynamo-to-rds-1.0-SNAPSHOT.jar
+
+functions:
+  api:
+    handler: com.cleo.controllers.RequestHandler
+    events:
+      - http:
+          path: api/{proxy+}
+          method: any
